@@ -86,8 +86,60 @@ class Tetris:
                     pygame.draw.rect(self.screen, piece.color, ((piece.x + j)*self.BLOCK_SIZE, (piece.y + i)*self.BLOCK_SIZE, self.BLOCK_SIZE, self.BLOCK_SIZE), 0)
 
     def update(self):
-        # Update game logic (movement, collision detection, etc.)
-        pass
+        self.fall_time += self.clock.get_rawtime()
+        self.clock.tick()
+
+        # Move the piece down automatically
+        if self.fall_time / 50 > self.fall_speed:
+            self.fall_time = 0
+            self.current_piece.y += 1
+            if not self.valid_space(self.current_piece) or self.current_piece.y > self.GRID_HEIGHT - len(
+                    self.current_piece.shape):
+                self.current_piece.y -= 1
+                self.lock_piece()
+                self.clear_lines()
+                self.current_piece = self.next_piece
+                self.next_piece = Tetromino(5, 0)
+                if not self.valid_space(self.current_piece):
+                    self.running = False  # Game over condition
+
+    def valid_space(self, piece):
+        accepted_positions = [[(j, i) for j in range(self.GRID_WIDTH) if self.grid[i][j] == (0, 0, 0)] for i in
+                              range(self.GRID_HEIGHT)]
+        accepted_positions = [j for sub in accepted_positions for j in sub]  # Flatten the list
+
+        formatted_piece = self.convert_shape_format(piece)
+
+        for pos in formatted_piece:
+            if pos not in accepted_positions:
+                if pos[1] > -1:  # Checking if the piece is above the screen (not considered a collision)
+                    return False
+        return True
+
+    def convert_shape_format(self, piece):
+        positions = []
+        shape_format = piece.shape
+
+        for i, line in enumerate(shape_format):
+            row = list(line)
+            for j, column in enumerate(row):
+                if column == 1:
+                    positions.append((piece.x + j, piece.y + i))
+
+        return positions
+
+    def lock_piece(self):
+        for pos in self.convert_shape_format(self.current_piece):
+            self.grid[pos[1]][pos[0]] = self.current_piece.color
+
+    def clear_lines(self):
+        # Reverse check to see if user cleared a line
+        for i in range(len(self.grid) - 1, -1, -1):
+            row = self.grid[i]
+            if (0, 0, 0) not in row:
+                del self.grid[i]
+                self.grid.insert(0, [(0, 0, 0) for _ in range(self.GRID_WIDTH)])
+
 
 if __name__ == "__main__":
     game = Tetris()
