@@ -1,3 +1,4 @@
+
 import pygame
 import random
 
@@ -25,123 +26,144 @@ class Tetromino:
     ]
 
     def __init__(self, x, y):
-        self.type = random.randint(0, len(self.SHAPES) - 1)
-        self.shape = self.SHAPES[self.type]
-        self.color = self.COLORS[self.type]
         self.x = x
         self.y = y
+        self.type = random.randint(0, len(self.SHAPES) - 1)
+        self.color = random.randint(1, len(Tetromino.COLORS) - 1)
+        self.rotation = 0
+
+    def image(self):
+        return self.SHAPES[self.type][self.rotation]
 
     def rotate(self):
-        self.shape = [ [ self.shape[y][x] for y in range(len(self.shape)) ] for x in range(len(self.shape[0]) - 1, -1, -1) ]
+        self.rotation = (self.rotation + 1) % len(self.SHAPES[self.type])
 
 class Tetris:
-    SCREEN_WIDTH, SCREEN_HEIGHT = 300, 600
-    GRID_WIDTH, GRID_HEIGHT = 10, 20
-    BLOCK_SIZE = 30
+    level = 2
+    score = 0
+    state = "start"
+    height = 20
+    width = 10
+    x = 100
+    y = 60
+    zoom = 20
+    figure = None
 
-    def __init__(self):
-        self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
-        pygame.display.set_caption("Tetris")
-        self.clock = pygame.time.Clock()
-        self.running = True
-        self.grid = [[(0,0,0) for _ in range(self.GRID_WIDTH)] for _ in range(self.GRID_HEIGHT)]
-        self.current_piece = Tetromino(5, 0)
-        self.next_piece = Tetromino(5, 0)
-        self.fall_time = 0
-        self.fall_speed = 0.3
+    def __init__(self, height, width):
+        self.height = height
+        self.width = width
+        self.field = [[0 for _ in range(width)] for _ in range(height)]
+        self.score = 0
+        self.state = "start"
+        self.new_figure()
+        self.running = True  # Define running as a class variable
 
-    def run(self):
-        while self.running:
-            self.screen.fill((0, 0, 0))
-            self.handle_events()
-            self.draw_grid()
-            self.draw_tetromino(self.current_piece)
-            self.update()
-            pygame.display.flip()
-            self.clock.tick(60)
+    def new_figure(self):
+        self.figure = Tetromino(5, 0)
+
+    def intersects(self):
+        for i in range(4):
+            for j in range(4):
+                if i * 4 + j in self.figure.image():
+                    if i + self.figure.y >= self.height or \
+                       j + self.figure.x >= self.width or \
+                       j + self.figure.x < 0 or \
+                       self.field[i + self.figure.y][j + self.figure.x]:
+                        return True
+        return False
+
+    def freeze(self):
+        for i in range(4):
+            for j in range(4):
+                if i * 4 + j in self.figure.image():
+                    self.field[i + self.figure.y][j + self.figure.x] = self.figure.color
+        self.clear_lines()
+        self.new_figure()
+        if self.intersects():
+            self.state = "gameover"
+
+    def clear_lines(self):
+        lines = 0
+        for i in range(1, self.height):
+            if 0 not in self.field[i]:
+                lines += 1
+                del self.field[i]
+                self.field.insert(0, [0 for _ in range(self.width)])
+        self.score += lines ** 2
+
+    def rotate(self):
+        old_rotation = self.figure.rotation
+        self.figure.rotate()
+        if self.intersects():
+            self.figure.rotation = old_rotation
+
+    def move_piece(self, dx):
+        old_x = self.figure.x
+        self.figure.x += dx
+        if self.intersects():
+            self.figure.x = old_x
+
+    def go_down(self):
+        self.figure.y += 1
+        if self.intersects():
+            self.figure.y -= 1
+            self.freeze()
 
     def handle_events(self):
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_LEFT:
-                    self.current_piece.x -= 1
-                if event.key == pygame.K_RIGHT:
-                    self.current_piece.x += 1
-                if event.key == pygame.K_DOWN:
-                    self.current_piece.y += 1
-                if event.key == pygame.K_UP:
-                    self.current_piece.rotate()
+                    self.move_piece(-1)
+                elif event.key == pygame.K_RIGHT:
+                    self.move_piece(1)
+                elif event.key == pygame.K_DOWN:
+                    self.go_down()
+                elif event.key == pygame.K_UP:
+                    self.rotate()
 
-    def draw_grid(self):
-        for i, row in enumerate(self.grid):
-            for j, color in enumerate(row):
-                pygame.draw.rect(self.screen, color, (j*self.BLOCK_SIZE, i*self.BLOCK_SIZE, self.BLOCK_SIZE, self.BLOCK_SIZE), 0)
+# Continue from the previous code snippet
 
-    def draw_tetromino(self, piece):
-        for i, row in enumerate(piece.shape):
-            for j, cell in enumerate(row):
-                if cell:
-                    pygame.draw.rect(self.screen, piece.color, ((piece.x + j)*self.BLOCK_SIZE, (piece.y + i)*self.BLOCK_SIZE, self.BLOCK_SIZE, self.BLOCK_SIZE), 0)
+    def draw(self, screen):
+        # Fill the background
+        screen.fill((0, 0, 0))
 
-    def update(self):
-        self.fall_time += self.clock.get_rawtime()
-        self.clock.tick()
+        # Draw the grid
+        for i in range(self.height):
+            for j in range(self.width):
+                pygame.draw.rect(screen, (255, 255, 255), [self.x + self.zoom * j, self.y + self.zoom * i, self.zoom, self.zoom], 1)
+                if self.field[i][j]:
+                    pygame.draw.rect(screen, Tetromino.COLORS[self.field[i][j]],
+                                     [self.x + self.zoom * j + 1, self.y + self.zoom * i + 1, self.zoom - 2, self.zoom - 2])
 
-        # Move the piece down automatically
-        if self.fall_time / 50 > self.fall_speed:
-            self.fall_time = 0
-            self.current_piece.y += 1
-            if not self.valid_space(self.current_piece) or self.current_piece.y > self.GRID_HEIGHT - len(
-                    self.current_piece.shape):
-                self.current_piece.y -= 1
-                self.lock_piece()
-                self.clear_lines()
-                self.current_piece = self.next_piece
-                self.next_piece = Tetromino(5, 0)
-                if not self.valid_space(self.current_piece):
-                    self.running = False  # Game over condition
+        # Draw the current tetromino
+        if self.figure is not None:
+            for i in range(4):
+                for j in range(4):
+                    p = i * 4 + j
+                    if p in self.figure.image():
+                        pygame.draw.rect(screen, Tetromino.COLORS[self.figure.color],
+                                         [self.x + self.zoom * (j + self.figure.x) + 1,
+                                          self.y + self.zoom * (i + self.figure.y) + 1,
+                                          self.zoom - 2, self.zoom - 2])
 
-    def valid_space(self, piece):
-        accepted_positions = [[(j, i) for j in range(self.GRID_WIDTH) if self.grid[i][j] == (0, 0, 0)] for i in
-                              range(self.GRID_HEIGHT)]
-        accepted_positions = [j for sub in accepted_positions for j in sub]  # Flatten the list
+# Game initialization
+size = (400, 500)
+screen = pygame.display.set_mode(size)
+pygame.display.set_caption("Tetris")
 
-        formatted_piece = self.convert_shape_format(piece)
+done = False
+clock = pygame.time.Clock()
+fps = 5
+game = Tetris(20, 10)
 
-        for pos in formatted_piece:
-            if pos not in accepted_positions:
-                if pos[1] > -1:  # Checking if the piece is above the screen (not considered a collision)
-                    return False
-        return True
+while game.running:
+    game.handle_events()  # This will set game.running to False when the quit event is detected
+    if game.state == "start":
+        game.go_down()
 
-    def convert_shape_format(self, piece):
-        positions = []
-        shape_format = piece.shape
-
-        for i, line in enumerate(shape_format):
-            row = list(line)
-            for j, column in enumerate(row):
-                if column == 1:
-                    positions.append((piece.x + j, piece.y + i))
-
-        return positions
-
-    def lock_piece(self):
-        for pos in self.convert_shape_format(self.current_piece):
-            self.grid[pos[1]][pos[0]] = self.current_piece.color
-
-    def clear_lines(self):
-        # Reverse check to see if user cleared a line
-        for i in range(len(self.grid) - 1, -1, -1):
-            row = self.grid[i]
-            if (0, 0, 0) not in row:
-                del self.grid[i]
-                self.grid.insert(0, [(0, 0, 0) for _ in range(self.GRID_WIDTH)])
-
-
-if __name__ == "__main__":
-    game = Tetris()
-    game.run()
-
+    game.draw(screen)
+    pygame.display.flip()
+    clock.tick(fps)
