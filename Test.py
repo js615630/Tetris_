@@ -16,13 +16,20 @@ class Tetromino:
         (128, 0, 128)   # Purple T
     ]
     SHAPES = [
-        [[1, 1, 1, 1]],  # I
-        [[1, 0, 0], [1, 1, 1]],  # L
-        [[0, 0, 1], [1, 1, 1]],  # J
-        [[1, 1], [1, 1]],  # O
-        [[0, 1, 1], [1, 1, 0]],  # S
-        [[1, 1, 0], [0, 1, 1]],  # Z
-        [[0, 1, 0], [1, 1, 1]]   # T
+        # I Tetromino
+        [[4, 5, 6, 7], [2, 6, 10, 14], [8, 9, 10, 11], [1, 5, 9, 13]],
+        # O Tetromino
+        [[4, 5, 8, 9], [4, 5, 8, 9], [4, 5, 8, 9], [4, 5, 8, 9]],
+        # L Tetromino
+        [[1, 2, 5, 9], [0, 4, 5, 6], [1, 5, 8, 9], [4, 5, 6, 10]],
+        # J Tetromino
+        [[0, 4, 5, 6], [1, 5, 9, 10], [4, 5, 6, 10], [0, 1, 5, 9]],
+        # S Tetromino
+        [[6, 7, 9, 10], [1, 5, 6, 10], [6, 7, 9, 10], [1, 5, 6, 10]],
+        # Z Tetromino
+        [[4, 5, 9, 10], [2, 6, 5, 9], [4, 5, 9, 10], [2, 6, 5, 9]],
+        # T Tetromino
+        [[1, 4, 5, 6], [1, 5, 6, 9], [4, 5, 6, 9], [1, 4, 5, 9]],
     ]
 
     def __init__(self, x, y):
@@ -148,15 +155,24 @@ class Tetris:
                                          [self.x + self.zoom * (j + self.figure.x) + 1,
                                           self.y + self.zoom * (i + self.figure.y) + 1,
                                           self.zoom - 2, self.zoom - 2])
+        # Draw the score
+        font = pygame.font.SysFont('comicsans', 30, True)
+        score_text = font.render('Score: ' + str(self.score), 1, (255, 255, 255))
+        screen.blit(score_text, (self.x + self.width * self.zoom + 10, 20))
+
+        # Draw Game Over text when the game state is "gameover"
+        if self.state == "gameover":
+            game_over_text = font.render('GAME OVER', 1, (255, 0, 0))
+            screen.blit(game_over_text, (self.x + 20, self.y + self.height * self.zoom / 2 - 20))
 
 # Game initialization
-size = (400, 500)
+size = (800, 1000)
 screen = pygame.display.set_mode(size)
 pygame.display.set_caption("Tetris")
 
 done = False
 clock = pygame.time.Clock()
-fps = 5
+fps = 3
 game = Tetris(20, 10)
 
 while game.running:
