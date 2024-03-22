@@ -82,6 +82,20 @@ class Tetris:
         self.running = True  # Define running as a class variable
         self.lines_to_clear = []
         self.high_score = read_high_score()
+        self.next_round_score = 10  # Points needed to win the current round
+        self.total_rounds_won = 0  # Keep track of how many rounds have been won
+        self.initial_speed = 2  # Starting speed, adjust as necessary
+        self.speed_increase = 1  # Speed increase per round
+        self.current_speed = self.initial_speed  # Current speed of falling pieces
+        # Initialize the game
+        self.start_new_round()
+
+    def start_new_round(self):
+        self.field = [[0 for _ in range(self.width)] for _ in range(self.height)]
+        self.new_figure()
+        self.state = "start"
+        # Increase speed for each new round
+        self.current_speed += self.speed_increase  # Increase the speed for the next round
 
     def new_figure(self):
         self.figure = Tetromino(5, 0)
@@ -109,6 +123,10 @@ class Tetris:
         if self.score > self.high_score:
             self.high_score = self.score
             write_high_score(self.high_score)
+        if self.score >= self.next_round_score:
+            self.total_rounds_won += 1  # Increment the round won counter
+            self.next_round_score += 15  # Update the score target for the next round
+            self.start_new_round()  # Start a new round
 
 
     def rotate(self):
@@ -143,6 +161,8 @@ class Tetris:
                     self.go_down()
                 elif event.key == pygame.K_UP:
                     self.rotate()
+                elif event.key == pygame.K_r:  # Reset the game when 'R' is pressed
+                    self.reset_game()
 
     def clear_lines(self):
         self.lines_to_clear = [i for i in range(1, self.height) if 0 not in self.field[i]]
@@ -204,6 +224,17 @@ class Tetris:
             game_over_text = font.render('GAME OVER', 1, (255, 0, 0))
             screen.blit(game_over_text, (self.x + 20, self.y + self.height * self.zoom / 2 - 20))
 
+    def reset_game(self):
+        self.field = [[0 for _ in range(self.width)] for _ in range(self.height)]
+        self.score = 0  # Reset score
+        self.state = "start"
+        self.new_figure()
+        self.lines_to_clear = []
+        self.next_round_score = 10  # Reset the target score for winning the round
+        self.total_rounds_won = 0  # Reset the total rounds won
+        self.current_speed = self.initial_speed  # Reset to the original speed
+        self.running = True  # Keep the game running
+
 
 # Game initialization
 size = (800, 1000)
@@ -222,4 +253,4 @@ while game.running:
 
     game.draw(screen)
     pygame.display.flip()
-    clock.tick(fps)
+    clock.tick(game.current_speed)
