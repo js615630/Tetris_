@@ -1,20 +1,36 @@
 
 import pygame
 import random
+import json
 
 # Initialize pygame
 pygame.init()
+
+def read_high_score():
+    try:
+        with open('high_score.json', 'r') as f:
+            data = json.load(f)
+            return data.get('high_score', 0)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return 0
+
+def write_high_score(score):
+    with open('high_score.json', 'w') as f:
+        json.dump({'high_score': score}, f)
+
 
 class Tetromino:
     COLORS = [
         (0, 255, 255),  # Cyan I
         (255, 165, 0),  # Orange L
-        (0, 0, 255),    # Blue J
+        (0, 0, 255),  # Blue J
         (255, 255, 0),  # Yellow O
-        (0, 255, 0),    # Green S
-        (255, 0, 0),    # Red Z
-        (128, 0, 128)   # Purple T
+        (0, 255, 0),  # Green S
+        (255, 0, 0),  # Red Z
+        (128, 0, 128),  # Purple T
+        (255, 255, 255)  # White for flashing
     ]
+
     SHAPES = [
         # I Tetromino
         [[4, 5, 6, 7], [2, 6, 10, 14], [8, 9, 10, 11], [1, 5, 9, 13]],
@@ -64,6 +80,8 @@ class Tetris:
         self.state = "start"
         self.new_figure()
         self.running = True  # Define running as a class variable
+        self.lines_to_clear = []
+        self.high_score = read_high_score()
 
     def new_figure(self):
         self.figure = Tetromino(5, 0)
@@ -88,15 +106,10 @@ class Tetris:
         self.new_figure()
         if self.intersects():
             self.state = "gameover"
+        if self.score > self.high_score:
+            self.high_score = self.score
+            write_high_score(self.high_score)
 
-    def clear_lines(self):
-        lines = 0
-        for i in range(1, self.height):
-            if 0 not in self.field[i]:
-                lines += 1
-                del self.field[i]
-                self.field.insert(0, [0 for _ in range(self.width)])
-        self.score += lines ** 2
 
     def rotate(self):
         old_rotation = self.figure.rotation
@@ -131,19 +144,40 @@ class Tetris:
                 elif event.key == pygame.K_UP:
                     self.rotate()
 
-# Continue from the previous code snippet
+    def clear_lines(self):
+        self.lines_to_clear = [i for i in range(1, self.height) if 0 not in self.field[i]]
+        if self.lines_to_clear:
+            for _ in range(4):  # Flash 4 times
+                pygame.time.delay(100)  # Flashing delay
+                self.draw(screen, flash=True)
+                pygame.display.flip()
+                pygame.time.delay(100)
+            for i in self.lines_to_clear:
+                del self.field[i]
+                self.field.insert(0, [0 for _ in range(self.width)])
+            self.score += len(self.lines_to_clear) ** 2
+            self.lines_to_clear = []  # Reset the lines to clear
 
-    def draw(self, screen):
+    def draw(self, screen, flash=False):
         # Fill the background
         screen.fill((0, 0, 0))
 
         # Draw the grid
         for i in range(self.height):
             for j in range(self.width):
-                pygame.draw.rect(screen, (255, 255, 255), [self.x + self.zoom * j, self.y + self.zoom * i, self.zoom, self.zoom], 1)
-                if self.field[i][j]:
-                    pygame.draw.rect(screen, Tetromino.COLORS[self.field[i][j]],
-                                     [self.x + self.zoom * j + 1, self.y + self.zoom * i + 1, self.zoom - 2, self.zoom - 2])
+                # Flash effect for lines to clear
+                if flash and i in self.lines_to_clear:
+                    flash_color = (255, 255, 255)  # White for flashing
+                    pygame.draw.rect(screen, flash_color,
+                                     [self.x + self.zoom * j + 1, self.y + self.zoom * i + 1, self.zoom - 2,
+                                      self.zoom - 2])
+                else:
+                    pygame.draw.rect(screen, (255, 255, 255),
+                                     [self.x + self.zoom * j, self.y + self.zoom * i, self.zoom, self.zoom], 1)
+                    if self.field[i][j] > 0:
+                        pygame.draw.rect(screen, Tetromino.COLORS[self.field[i][j]],
+                                         [self.x + self.zoom * j + 1, self.y + self.zoom * i + 1, self.zoom - 2,
+                                          self.zoom - 2])
 
         # Draw the current tetromino
         if self.figure is not None:
@@ -155,15 +189,21 @@ class Tetris:
                                          [self.x + self.zoom * (j + self.figure.x) + 1,
                                           self.y + self.zoom * (i + self.figure.y) + 1,
                                           self.zoom - 2, self.zoom - 2])
-        # Draw the score
-        font = pygame.font.SysFont('comicsans', 30, True)
-        score_text = font.render('Score: ' + str(self.score), 1, (255, 255, 255))
-        screen.blit(score_text, (self.x + self.width * self.zoom + 10, 20))
+
+            # Display the current score
+            font = pygame.font.SysFont('comicsans', 30, True)
+            score_text = font.render(f'Score: {self.score}', True, (255, 255, 255))
+            screen.blit(score_text, (self.x + self.width * self.zoom + 10, 20))
+
+            # Display the high score
+            high_score_text = font.render(f'High Score: {self.high_score}', True, (255, 255, 255))
+            screen.blit(high_score_text, (self.x + self.width * self.zoom + 10, 50))
 
         # Draw Game Over text when the game state is "gameover"
         if self.state == "gameover":
             game_over_text = font.render('GAME OVER', 1, (255, 0, 0))
             screen.blit(game_over_text, (self.x + 20, self.y + self.height * self.zoom / 2 - 20))
+
 
 # Game initialization
 size = (800, 1000)
