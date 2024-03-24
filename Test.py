@@ -4,7 +4,19 @@ import random
 import json
 
 # Initialize pygame
-pygame.init()
+try:
+    pygame.init()
+except Exception as e:
+    print(f"Failed to initialize Pygame: {e}")
+
+try:
+    pygame.mixer.init()
+except Exception as e:
+    print(f"Failed to initialize mixer: {e}")
+
+# Load sound effects
+rotate_sound = pygame.mixer.Sound("sounds/677860__el_boss__ui-button-click-snap.wav)
+line_clear_sound = pygame.mixer.Sound("sounds/508598__drooler__crumple-05.ogg)
 
 def read_high_score():
     try:
@@ -148,7 +160,6 @@ class Tetris:
             self.freeze()
 
     def handle_events(self):
-
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
@@ -160,13 +171,19 @@ class Tetris:
                 elif event.key == pygame.K_DOWN:
                     self.go_down()
                 elif event.key == pygame.K_UP:
-                    self.rotate()
+                    old_rotation = self.figure.rotation
+                    self.figure.rotate()  # Rotate the piece
+                    if self.intersects():
+                        self.figure.rotation = old_rotation  # Revert if invalid
+                    else:
+                        rotate_sound.play()  # Play sound only if rotation is valid
                 elif event.key == pygame.K_r:  # Reset the game when 'R' is pressed
                     self.reset_game()
 
     def clear_lines(self):
         self.lines_to_clear = [i for i in range(1, self.height) if 0 not in self.field[i]]
         if self.lines_to_clear:
+            line_clear_sound.play()  # Play the line clear sound here
             for _ in range(4):  # Flash 4 times
                 pygame.time.delay(100)  # Flashing delay
                 self.draw(screen, flash=True)
@@ -238,7 +255,12 @@ class Tetris:
 
 # Game initialization
 size = (800, 1000)
-screen = pygame.display.set_mode(size)
+
+try:
+    screen = pygame.display.set_mode(size)
+except Exception as e:
+    print(f"Failed to set display mode: {e}")
+
 pygame.display.set_caption("Tetris")
 
 done = False
@@ -247,10 +269,12 @@ fps = 3
 game = Tetris(20, 10)
 
 while game.running:
-    game.handle_events()  # This will set game.running to False when the quit event is detected
-    if game.state == "start":
-        game.go_down()
-
-    game.draw(screen)
-    pygame.display.flip()
-    clock.tick(game.current_speed)
+    try:
+        game.handle_events()
+        if game.state == "start":
+            game.go_down()
+        game.draw(screen)
+        pygame.display.flip()
+        clock.tick(game.current_speed)
+    except Exception as e:
+        print(f"An error occurred during the game loop: {e}")
